@@ -1,9 +1,15 @@
 const express = require("express");
 const path = require('path');
+const cookieParser = require('cookie-parser')
 const {connectToMongoDB} = require("./connect");
+const {restrictedToLoggedInUserOnly, checkAuth} = require('./middlewares/auth')
 const URL = require('./models/url');
+
 const urlRoute = require('./routes/url');
-const staticRoute = require('./routes/staticRouter')
+const staticRoute = require('./routes/staticRouter');
+const userRoute = require('./routes/user')
+
+
 const app = express();
 const PORT = 8001;
 
@@ -13,10 +19,12 @@ app.set('view engine', 'ejs');
 app.set('views', path.resolve('./views'))
 
 app.use(express.json());
-app.use(express.urlencoded({extended: false}))
+app.use(express.urlencoded({extended: false}));
+app.use(cookieParser);
 
-app.use('/url', urlRoute);
-app.use('/', staticRoute)
+app.use('/url',restrictedToLoggedInUserOnly, urlRoute);
+app.use('/user', userRoute);
+app.use('/',checkAuth, staticRoute);
  
 // server side rendering (templating engins : EJS, pug js, handlebars )
 app.get("/test", async (req, res) => {
@@ -24,17 +32,6 @@ app.get("/test", async (req, res) => {
     return res.render('home',{
         urls: allUrls,
     })
-    // return res.end(`
-    //     <html>
-    //         <head>
-    //             <body>
-    //                 <ol>
-    //                     ${allUrls.map(url => `<li>${url.shortId} -> ${url.redirectURL} -> ${url.visitHistory.length}</li>`).join('')}
-    //                 </ol>
-    //             </body>
-    //         </head>
-    //     </html>
-    //     `)
 })
 
 app.get('/url/:shortId', async(req, res) => {
